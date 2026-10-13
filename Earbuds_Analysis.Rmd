@@ -1,0 +1,53 @@
+---
+title: "Price Framing, Discount Anchoring, and Social Proof on Purchase Intent"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(car)       # Type III ANOVA
+library(ggplot2)
+data <- read.csv("Earbuds_Combined.csv")
+data$Framing <- factor(data$Framing)
+data$Anchor  <- factor(data$Anchor)
+data$Reviews <- factor(data$Reviews)
+```
+
+## Data summary
+
+```{r summary}
+table(data$Version)
+aggregate(Rating ~ Framing + Anchor + Reviews, data = data,
+          FUN = function(x) c(n = length(x), mean = round(mean(x), 2), sd = round(sd(x), 2)))
+```
+
+## Three-way ANOVA (with interactions)
+
+Cell counts are unequal, so Type III sums of squares with sum-to-zero contrasts are used.
+
+```{r anova}
+options(contrasts = c("contr.sum", "contr.poly"))
+model <- lm(Rating ~ Framing * Anchor * Reviews, data = data)
+Anova(model, type = 3)
+```
+
+## Interaction graphs
+
+```{r interaction, message=FALSE}
+means <- aggregate(Rating ~ Anchor + Reviews, data = data, FUN = mean)
+ggplot(means, aes(Anchor, Rating, color = Reviews, group = Reviews)) +
+  geom_point(size = 3) + geom_line() +
+  labs(title = "Anchor x Reviews interaction", y = "Mean purchase intent (1-7)")
+
+means3 <- aggregate(Rating ~ Framing + Anchor + Reviews, data = data, FUN = mean)
+ggplot(means3, aes(Anchor, Rating, color = Reviews, group = Reviews)) +
+  geom_point(size = 3) + geom_line() + facet_wrap(~ Framing) +
+  labs(y = "Mean purchase intent (1-7)")
+```
+
+## Assumption checks
+
+```{r assumptions}
+leveneTest(Rating ~ Framing * Anchor * Reviews, data = data)
+shapiro.test(residuals(model))
+plot(model, which = 1:2)
+```
